@@ -239,7 +239,7 @@ export default class ElectronPlatform extends VectorBasePlatform {
 
         // try to flush the rageshake logs to indexeddb before quit.
         ipcRenderer.on('before-quit', function() {
-            console.log('riot-desktop closing');
+            console.log('element-desktop closing');
             rageshake.flush();
         });
 
@@ -503,9 +503,9 @@ export default class ElectronPlatform extends VectorBasePlatform {
         return url;
     }
 
-    startSingleSignOn(mxClient: MatrixClient, loginType: "sso" | "cas", fragmentAfterLogin: string) {
+    startSingleSignOn(mxClient: MatrixClient, loginType: "sso" | "cas", fragmentAfterLogin: string, idpId?: string) {
         // this will get intercepted by electron-main will-navigate
-        super.startSingleSignOn(mxClient, loginType, fragmentAfterLogin);
+        super.startSingleSignOn(mxClient, loginType, fragmentAfterLogin, idpId);
         Modal.createTrackedDialog('Electron', 'SSO', InfoDialog, {
             title: _t("Go to your browser to complete Sign In"),
             description: <Spinner />,
