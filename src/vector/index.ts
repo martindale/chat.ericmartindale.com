@@ -29,11 +29,6 @@ require('katex/dist/katex.css');
 import {parseQsFromFragment} from "./url_utils";
 import './modernizr';
 
-// load service worker if available on this platform
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-}
-
 async function settled(...promises: Array<Promise<any>>) {
     for (const prom of promises) {
         try {
@@ -50,14 +45,20 @@ function checkBrowserFeatures() {
         return false;
     }
 
-    // custom checks atop Modernizr because it doesn't have ES2018/ES2019 checks in it for some features we depend on,
-    // Modernizr requires rules to be lowercase with no punctuation:
-    // ES2018: http://www.ecma-international.org/ecma-262/9.0/#sec-promise.prototype.finally
+    // Custom checks atop Modernizr because it doesn't have ES2018/ES2019 checks
+    // in it for some features we depend on.
+    // Modernizr requires rules to be lowercase with no punctuation.
+    // ES2018: http://262.ecma-international.org/9.0/#sec-promise.prototype.finally
     window.Modernizr.addTest("promiseprototypefinally", () =>
-        window.Promise && window.Promise.prototype && typeof window.Promise.prototype.finally === "function");
-    // ES2019: http://www.ecma-international.org/ecma-262/10.0/#sec-object.fromentries
+        typeof window.Promise?.prototype?.finally === "function");
+    // ES2018: https://262.ecma-international.org/9.0/#sec-get-regexp.prototype.dotAll
+    window.Modernizr.addTest("regexpdotall", () => (
+        window.RegExp?.prototype &&
+        !!Object.getOwnPropertyDescriptor(window.RegExp.prototype, "dotAll")?.get
+    ));
+    // ES2019: http://262.ecma-international.org/10.0/#sec-object.fromentries
     window.Modernizr.addTest("objectfromentries", () =>
-        window.Object && typeof window.Object.fromEntries === "function");
+        typeof window.Object?.fromEntries === "function");
 
     const featureList = Object.keys(window.Modernizr);
 
@@ -91,6 +92,7 @@ async function start() {
     // load init.ts async so that its code is not executed immediately and we can catch any exceptions
     const {
         rageshakePromise,
+        setupLogStorage,
         preparePlatform,
         loadOlm,
         loadConfig,
@@ -137,6 +139,9 @@ async function start() {
         await settled(loadConfigPromise); // wait for it to settle
         // keep initialising so that we can show any possible error with as many features (theme, i18n) as possible
 
+        // now that the config is ready, try to persist logs
+        const persistLogsPromise = setupLogStorage();
+
         // Load language after loading config.json so that settingsDefaults.language can be applied
         const loadLanguagePromise = loadLanguage();
         // as quickly as we possibly can, set a default theme...
@@ -155,7 +160,7 @@ async function start() {
         // error handling begins here
         // ##########################
         if (!acceptBrowser) {
-            await new Promise(resolve => {
+            await new Promise<void>(resolve => {
                 console.error("Browser is missing required features.");
                 // take to a different landing page to AWOOOOOGA at the user
                 showIncompatibleBrowser(() => {
@@ -195,6 +200,11 @@ async function start() {
         await loadSkinPromise;
         await loadThemePromise;
         await loadLanguagePromise;
+
+        // We don't care if the log persistence made it through successfully, but we do want to
+        // make sure it had a chance to load before we move on. It's prepared much higher up in
+        // the process, making this the first time we check that it did something.
+        await settled(persistLogsPromise);
 
         // Finally, load the app. All of the other react-sdk imports are in this file which causes the skinner to
         // run on the components.

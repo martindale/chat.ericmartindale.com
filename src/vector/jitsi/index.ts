@@ -45,6 +45,7 @@ let userId: string;
 let jitsiAuth: string;
 let roomId: string;
 let openIdToken: IOpenIDCredentials;
+let roomName: string;
 
 let widgetApi: WidgetApi;
 let meetApi: any; // JitsiMeetExternalAPI
@@ -104,6 +105,7 @@ let meetApi: any; // JitsiMeetExternalAPI
         userId = qsParam('userId');
         jitsiAuth = qsParam('auth', true);
         roomId = qsParam('roomId', true);
+        roomName = qsParam('roomName', true);
 
         if (widgetApi) {
             await readyPromise;
@@ -122,6 +124,22 @@ let meetApi: any; // JitsiMeetExternalAPI
                 (ev: CustomEvent<IWidgetApiRequest>) => {
                     if (meetApi) meetApi.executeCommand('hangup');
                     widgetApi.transport.reply(ev.detail, {}); // ack
+                },
+            );
+            widgetApi.on(`action:${ElementWidgetActions.StartLiveStream}`,
+                (ev: CustomEvent<IWidgetApiRequest>) => {
+                    if (meetApi) {
+                        meetApi.executeCommand('startRecording', {
+                            mode: 'stream',
+                            // this looks like it should be rtmpStreamKey but we may be on too old
+                            // a version of jitsi meet
+                            //rtmpStreamKey: ev.detail.data.rtmpStreamKey,
+                            youtubeStreamKey: ev.detail.data.rtmpStreamKey,
+                        });
+                        widgetApi.transport.reply(ev.detail, {}); // ack
+                    } else {
+                        widgetApi.transport.reply(ev.detail, {error: {message: "Conference not joined"}});
+                    }
                 },
             );
         }
@@ -164,6 +182,7 @@ function createJWTToken() {
             matrix: {
                 token: openIdToken.access_token,
                 room_id: roomId,
+                server_name: openIdToken.matrix_server_name,
             },
             user: {
                 avatar: avatarUrl,
@@ -225,6 +244,7 @@ function joinConference() { // event handler bound in HTML
     if (displayName) meetApi.executeCommand("displayName", displayName);
     if (avatarUrl) meetApi.executeCommand("avatarUrl", avatarUrl);
     if (userId) meetApi.executeCommand("email", userId);
+    if (roomName) meetApi.executeCommand("subject", roomName);
 
     meetApi.on("readyToClose", () => {
         switchVisibleContainers();

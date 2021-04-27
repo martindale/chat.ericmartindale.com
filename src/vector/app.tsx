@@ -23,7 +23,6 @@ import React from 'react';
 // this incidentally means we can forget our React imports in JSX files without penalty.
 window.React = React;
 
-import url from 'url';
 import * as sdk from 'matrix-react-sdk';
 import PlatformPeg from 'matrix-react-sdk/src/PlatformPeg';
 import {_td, newTranslatableError} from 'matrix-react-sdk/src/languageHandler';
@@ -36,6 +35,7 @@ import SdkConfig from "matrix-react-sdk/src/SdkConfig";
 
 import {parseQs, parseQsFromFragment} from './url_utils';
 import VectorBasePlatform from "./platform/VectorBasePlatform";
+import {createClient} from "matrix-js-sdk/src/matrix";
 
 let lastLocationHashSet: string = null;
 
@@ -120,11 +120,12 @@ function onTokenLoginCompleted() {
     // if we did a token login, we're now left with the token, hs and is
     // url as query params in the url; a little nasty but let's redirect to
     // clear them.
-    const parsedUrl = url.parse(window.location.href);
-    parsedUrl.search = "";
-    const formatted = url.format(parsedUrl);
-    console.log(`Redirecting to ${formatted} to drop loginToken from queryparams`);
-    window.location.href = formatted;
+    const url = new URL(window.location.href);
+
+    url.searchParams.delete("loginToken");
+
+    console.log(`Redirecting to ${url.href} to drop loginToken from queryparams`);
+    window.history.replaceState(null, "", url.href);
 }
 
 export async function loadApp(fragParams: {}) {
@@ -153,6 +154,26 @@ export async function loadApp(fragParams: {}) {
 
     // Don't bother loading the app until the config is verified
     const config = await verifyServerConfig();
+
+    // Before we continue, let's see if we're supposed to do an SSO redirect
+    const [userId] = await Lifecycle.getStoredSessionOwner();
+    const hasPossibleToken = !!userId;
+    const isReturningFromSso = !!params.loginToken;
+    const autoRedirect = config['sso_immediate_redirect'] === true;
+    if (!hasPossibleToken && !isReturningFromSso && autoRedirect) {
+        console.log("Bypassing app load to redirect to SSO");
+        const tempCli = createClient({
+            baseUrl: config['validated_server_config'].hsUrl,
+            idBaseUrl: config['validated_server_config'].isUrl,
+        });
+        PlatformPeg.get().startSingleSignOn(tempCli, "sso", `/${getScreenFromLocation(window.location).screen}`);
+
+        // We return here because startSingleSignOn() will asynchronously redirect us. We don't
+        // care to wait for it, and don't want to show any UI while we wait (not even half a welcome
+        // page). As such, just don't even bother loading the MatrixChat component.
+        return;
+    }
+
     const MatrixChat = sdk.getComponent('structures.MatrixChat');
     return <MatrixChat
         onNewScreen={onNewScreen}

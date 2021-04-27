@@ -22,9 +22,12 @@ For a good example, see https://develop.element.io/config.json.
      `default_hs_url` is specified. When multiple sources are specified, it is unclear
      which should take priority and therefore the application cannot continue.
    * As of Element 1.4.0, identity servers are optional. See [Identity servers](#identity-servers) below.
+1. `sso_immediate_redirect`: When `true`, Element will assume the default server supports SSO
+   and attempt to send the user there to continue (if they aren't already logged in). Default
+   `false`. Note that this disables all usage of the welcome page.
 1. `features`: Lookup of optional features that may be force-enabled (`true`) or force-disabled (`false`).
    When features are not listed here, their defaults will be used, and users can turn them on/off if `showLabsSettings`
-   allows them to. The available optional experimental features vary from release to release and are 
+   allows them to. The available optional experimental features vary from release to release and are
    [documented](labs.md). The feature flag process is [documented](feature-flags.md) as well.
 1. `showLabsSettings`: Shows the "labs" tab of user settings. Useful to allow users to turn on experimental features
    they might not otherwise have access to.
@@ -72,6 +75,9 @@ For a good example, see https://develop.element.io/config.json.
     1. `homeUrl`: Content shown on the inside of the app when a specific room is
        not selected. By default, no home page is configured. If one is set, a
        button to access it will be shown in the top left menu.
+    1. `loginForWelcome`: Overrides `welcomeUrl` to make the welcome page be the
+       same page as the login page when `true`. This effectively disables the
+       welcome page.
 1. `defaultCountryCode`: The ISO 3166 alpha2 country code to use when showing
    country selectors, like the phone number input on the registration page.
    Defaults to `GB` if the given code is unknown or not provided.
@@ -82,8 +88,8 @@ For a good example, see https://develop.element.io/config.json.
    default homeserver when signing up or logging in.
 1. `permalinkPrefix`: Used to change the URL that Element generates permalinks with.
    By default, this is "https://matrix.to" to generate matrix.to (spec) permalinks.
-   Set this to your Riot instance URL if you run an unfederated server (eg:
-   "https://riot.example.org").
+   Set this to your Element instance URL if you run an unfederated server (eg:
+   "https://element.example.org").
 1. `jitsi`: Used to change the default conference options. Learn more about the
    Jitsi options at [jitsi.md](./jitsi.md).
     1. `preferredDomain`: The domain name of the preferred Jitsi instance. Defaults
@@ -110,6 +116,22 @@ For a good example, see https://develop.element.io/config.json.
    1. `logo`: An HTTP URL to the avatar for the desktop build. Should be 24x24, ideally
       an SVG.
    1. `url`: An HTTP URL for where to send the user to download the desktop build.
+1. `mobileBuilds`: Used to alter promotional links to the mobile app. By default the
+   builds are considered available and accessible from https://element.io. This config
+   option is typically used in a context of encouraging the user to try the mobile app
+   instead of a mobile/incompatible browser.
+   1. `ios`: The URL to the iOS build. If `null`, it will be assumed to be not available.
+       If not set, the default element.io builds will be used.
+   1. `android`: The URL to the Android build. If `null`, it will be assumed to be not available.
+       If not set, the default element.io builds will be used.
+   1. `fdroid`: The URL to the FDroid build. If `null`, it will be assumed to be not available.
+      If not set, the default element.io builds will be used.
+1. `mobileGuideToast`: Whether to show a toast a startup which nudges users on
+   iOS and Android towards the native mobile apps. The toast redirects to the
+   mobile guide if they accept. Defaults to false.
+1. `audioStreamUrl`: If supplied, show an option on Jitsi widgets to stream
+   audio using Jitsi's live streaming feature. This option is experimental and
+   may be removed at any time without notice.
 
 Note that `index.html` also has an og:image meta tag that is set to an image
 hosted on riot.im. This is the image used if links to your copy of Element

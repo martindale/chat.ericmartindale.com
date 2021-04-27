@@ -7,6 +7,14 @@ to `Settings->Labs`. This list is non-exhaustive and subject to change, chat in
 **Be warned! Labs features are not finalised, they may be fragile, they may change, they may be
 dropped. Ask in the room if you are unclear about any details here.**
 
+## Matrix Spaces [MSC1772](https://github.com/matrix-org/matrix-doc/pull/1772) support (`feature_spaces`)
+
+Enables showing, using, creating, and managing spaces. Create Spaces from the all new Space Panel (to left of Room List).
+
+Incompatible with (will disable) `feature_custom_tags`, `feature_communities_v2_prototypes` and stable Communities/Groups support.
+
+Still in heavy development.
+
 ## Render LaTeX maths in messages (`feature_latex_maths`)
 
 Enables rendering of LaTeX maths in messages using [KaTeX](https://katex.org/). LaTeX between single dollar-signs is interpreted as inline maths and double dollar-signs as display maths (i.e. centred on its own line).
@@ -115,3 +123,15 @@ or feedback for this functionality at this time.
 
 Allows users to receive encrypted messages by creating a device that is stored
 encrypted on the server, as described in [MSC2697](https://github.com/matrix-org/matrix-doc/pull/2697).
+
+## Voice messages (`feature_voice_messages`) [In Development]
+
+An in-progress implementation of [MSC2516](https://github.com/matrix-org/matrix-doc/pull/2516) to add
+[voice messages](https://github.com/vector-im/element-web/issues/1358) to Element. Note that this feature
+is currently under active development and therefore is entirely incomplete and may not work at all - it
+is not recommended for general use at this time.
+
+## Do not disturb (`feature_dnd`)
+
+Enables UI for turning on "do not disturb" mode for the current device. When DND mode is engaged, popups
+and notification noises are suppressed. Not perfect, but can help reduce noise.

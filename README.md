@@ -11,7 +11,7 @@ Element has several tiers of support for different environments:
 
 * Supported
   * Definition: Issues **actively triaged**, regressions **block** the release
-  * Last 2 major versions of Chrome, Firefox, and Safari on desktop OSes
+  * Last 2 major versions of Chrome, Firefox, Safari, and Edge on desktop OSes
   * Latest release of official Element Desktop app on desktop OSes
   * Desktop OSes means macOS, Windows, and Linux versions for desktop devices
     that are actively supported by the OS vendor and receive security updates
@@ -31,7 +31,7 @@ Getting Started
 ===============
 
 The easiest way to test Element is to just use the hosted copy at https://app.element.io.
-The `develop` branch is continuously deployed by Jenkins at https://develop.element.io
+The `develop` branch is continuously deployed to https://develop.element.io
 for those who like living dangerously.
 
 To host your own copy of Element, the quickest bet is to use a pre-built
@@ -58,8 +58,11 @@ and thus allowed.
 To install Element as a desktop application, see [Running as a desktop
 app](#running-as-a-desktop-app) below.
 
-Important Security Note
-=======================
+Important Security Notes
+========================
+
+Separate domains
+----------------
 
 We do not recommend running Element from the same domain name as your Matrix
 homeserver.  The reason is the risk of XSS (cross-site-scripting)
@@ -70,6 +73,45 @@ access to Element (or other apps) due to sharing the same domain.
 We have put some coarse mitigations into place to try to protect against this
 situation, but it's still not good practice to do it in the first place.  See
 https://github.com/vector-im/element-web/issues/1977 for more details.
+
+Configuration best practices
+----------------------------
+
+Unless you have special requirements, you will want to add the following to
+your web server configuration when hosting Element Web:
+
+- The `X-Frame-Options: SAMEORIGIN` header, to prevent Element Web from being
+  framed and protect from [clickjacking][owasp-clickjacking].
+- The `frame-ancestors 'none'` directive to your `Content-Security-Policy`
+  header, as the modern replacement for `X-Frame-Options` (though both should be
+  included since not all browsers support it yet, see
+  [this][owasp-clickjacking-csp]).
+- The `X-Content-Type-Options: nosniff` header, to [disable MIME
+  sniffing][mime-sniffing].
+- The `X-XSS-Protection: 1; mode=block;` header, for basic XSS protection in
+  legacy browsers.
+
+[mime-sniffing]:
+<https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#mime_sniffing>
+
+[owasp-clickjacking-csp]:
+<https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html#content-security-policy-frame-ancestors-examples>
+
+[owasp-clickjacking]:
+<https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html>
+
+If you are using nginx, this would look something like the following:
+
+```
+add_header X-Frame-Options SAMEORIGIN;
+add_header X-Content-Type-Options nosniff;
+add_header X-XSS-Protection "1; mode=block";
+add_header Content-Security-Policy "frame-ancestors 'none'";
+```
+
+Note: In case you are already setting a `Content-Security-Policy` header
+elsewhere, you should modify it to include the `frame-ancestors` directive
+instead of adding that last line.
 
 Building From Source
 ====================
@@ -99,7 +141,8 @@ guide](https://classic.yarnpkg.com/en/docs/install) if you do not have it alread
 Note that `yarn dist` is not supported on Windows, so Windows users can run `yarn build`,
 which will build all the necessary files into the `webapp` directory. The version of Element
 will not appear in Settings without using the dist script. You can then mount the
-`webapp` directory on your webserver to actually serve up the app, which is entirely static content.
+`webapp` directory on your web server to actually serve up the app, which is
+entirely static content.
 
 Running as a Desktop app
 ========================
@@ -158,6 +201,12 @@ docker build -t \
     --build-arg JS_SDK_BRANCH="develop" \
     .
 ```
+
+Running in Kubernetes
+=====================
+
+The provided element-web docker image can also be run from within a Kubernetes cluster.
+See the [Kubernetes example](docs/kubernetes.md) for more details.
 
 config.json
 ===========
@@ -255,15 +304,10 @@ yarn start
 
 Wait a few seconds for the initial build to finish; you should see something like:
 ```
-Hash: b0af76309dd56d7275c8
-Version: webpack 1.12.14
-Time: 14533ms
-         Asset     Size  Chunks             Chunk Names
-     bundle.js   4.2 MB       0  [emitted]  main
-    bundle.css  91.5 kB       0  [emitted]  main
- bundle.js.map  5.29 MB       0  [emitted]  main
-bundle.css.map   116 kB       0  [emitted]  main
-    + 1013 hidden modules
+[element-js] <s> [webpack.Progress] 100%
+[element-js]
+[element-js] ℹ ｢wdm｣:    1840 modules
+[element-js] ℹ ｢wdm｣: Compiled successfully.
 ```
    Remember, the command will not terminate since it runs the web server
    and rebuilds source files when they change. This development server also
@@ -345,51 +389,76 @@ For a developer guide, see the [translating dev doc](docs/translating-dev.md).
 Triaging issues
 ===============
 
-Issues will be triaged by the core team using the below set of tags.
+We strive to completely cover all applicable issues with these core labels:
 
-Tags are meant to be used in combination - e.g.:
- * P1 critical bug == really urgent stuff that should be next in the bugfixing todo list
- * "release blocker" == stuff which is blocking us from cutting the next release.
- * P1 feature type:voip == what VoIP features should we be working on next?
+1. __Type__ — Every issue is assigned a type:
+   - __[T-Defect](https://github.com/vector-im/element-web/labels/T-Defect):__
+     Bugs, crashes, hangs, vulnerabilities, or other reported problems
+   - __[T-Enhancement](https://github.com/vector-im/element-web/labels/T-Enhancement):__
+     New features, changes in functionality, performance boosts, user-facing
+     improvements
+   - __[T-Task](https://github.com/vector-im/element-web/labels/T-Task):__
+     Refactoring, enabling or disabling functionality, other engineering tasks
+   - __[T-Other](https://github.com/vector-im/element-web/labels/T-Other):__
+     Questions, user support, anything else
 
-priority: **compulsory**
+2. __Severity__ — All issues labeled `T-Defect` are also assigned a severity:
+   * __[S-Critical](https://github.com/vector-im/element-web/labels/S-Critical):__
+     Prevents work, causes data loss, affects many users, and/or has no
+     workaround
+   * __[S-Major](https://github.com/vector-im/element-web/labels/S-Major):__
+     Severely degrades major functionality or product features, with no
+     satisfactory workaround
+   * __[S-Minor](https://github.com/vector-im/element-web/labels/S-Minor):__
+     Impairs non-critical functionality, or suitable workarounds exist
+   * __[S-Tolerable](https://github.com/vector-im/element-web/labels/S-Tolerable):__
+     Purely cosmetic or low / no impact to users
 
-* P1: top priority - i.e. pool of stuff which we should be working on next
-* P2: still need to fix, but lower than P1
-* P3: non-urgent
-* P4: interesting idea - bluesky some day
-* P5: recorded for posterity/to avoid duplicates. No intention to resolves right now.
+3. __Priority__ — All issues which are not `T-Other` are assigned a priority:
+   * __[P1](https://github.com/vector-im/element-web/labels/P1):__ Next
+   * __[P2](https://github.com/vector-im/element-web/labels/P2):__ Later
+   * __[P3](https://github.com/vector-im/element-web/labels/P3):__ Eventually
+   * __[P4](https://github.com/vector-im/element-web/labels/P4):__ Interesting —
+     Not yet scheduled, will accept patches
+   * __[P5](https://github.com/vector-im/element-web/labels/P5):__ Dubious —
+     Will not schedule, would consider patches
 
-bug or feature: **compulsory**
+4. __Area__ — Most issues are assigned one or several "areas" using one of the
+   many `A-` prefixed labels, e.g. `A-Composer` or `A-Spaces`. Each area label
+   maps to a group of features or portion of the UI surface in the app.
 
-* bug
-* feature
+### Other common labels
 
-bug severity: **compulsory, if bug**
+We have a handful of other labels which are added on an as-needed basis, and not expected to be exhaustive:
 
-* critical - whole app doesn't work
-* major - entire feature doesn't work
-* minor - partially broken feature (but still usable)
-* cosmetic - feature works functionally but UI/UX is broken
+* __Exceptions__ — Special flags for issues and pull requests:
+  * __[X-Needs-Info](https://github.com/vector-im/element-web/labels/X-Needs-Info):__
+    This issue is blocked pending further information from the reporter
+  * __[X-Regression](https://github.com/vector-im/element-web/labels/X-Regression):__
+    Denotes things breaking which previously worked
+  * __[X-Release-Blocker](https://github.com/vector-im/element-web/labels/X-Release-Blocker):__
+    Issues which must be resolved before making a release
 
-types
-* type:* - refers to a particular part of the app; used to filter bugs
-  on a given topic - e.g. VOIP, signup, timeline, etc.
+* __[Easy](https://github.com/vector-im/element-web/labels/Easy)__ / __[Help
+  Wanted](https://github.com/vector-im/element-web/labels/Help%20Wanted)__ —
+  Well-defined issues which are suitable for folks new to the codebase
 
-additional categories (self-explanatory):
+* __[A11y](https://github.com/vector-im/element-web/labels/A11y)__ /
+  __[Meta](https://github.com/vector-im/element-web/labels/Meta)__ /
+  __[I18n](https://github.com/vector-im/element-web/labels/I18n)__ /
+  __[Privacy](https://github.com/vector-im/element-web/labels/Privacy)__ /
+  __[Security](https://github.com/vector-im/element-web/labels/Security)__ —
+  Issues which fall under these conceptual themes (which apply to many software
+  projects and are not specific to Element)
 
-* release blocker
-* ui/ux (think of this as cosmetic)
-* network (specific to network conditions)
-* platform specific
-* accessibility
-* maintenance
-* performance
-* i18n
-* blocked - whether this issue currently can't be progressed due to outside factors
+* __[Sponsored](https://github.com/vector-im/element-web/labels/Sponsored)__ —
+  Used internally by Element to denote issues with external funding
 
-community engagement
-* easy
-* hacktoberfest
-* bounty? - proposal to be included in a bounty programme
-* bounty - included in Status Open Bounty
+### Ad hoc labels (`Z-`)
+
+We have reserved the `Z-` prefix for ad hoc labels.
+
+Any member of the core team is welcome to create labels beginning with `Z-` for
+any purpose, such as tracking personal areas of interest or providing a common
+way to label cross-repo initiatives. The prefix avoids interference with the
+project's main labels.
